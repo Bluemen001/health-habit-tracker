@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useMemo, useState, useEffect } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -15,27 +15,92 @@ export type Session = {
   date: string;
   time: string;
   type: string;
-  note?: string;
+  note?: string | null;
   exercises: string[];
 };
 
 export default function TherapyManager() {
   const templates = useMemo(() => ["CBT", "Mindfulness", "Physiotherapy", "Group Therapy"], []);
-  const [sessions, setSessions] = useState<Session[]>([
-    { id: 1, date: "2025-09-27", time: "10:00", type: "CBT", note: "Breathing & reframing", exercises: ["Box Breathing", "Thought Log"] },
-  ]);
+  const [sessions, setSessions] = useState<Session[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   const [form, setForm] = useState<Session>({ id: 0, date: "", time: "", type: "CBT", note: "", exercises: [] });
 
-  const addSession = () => {
-    if (!form.date || !form.time) return;
-    const next: Session = { ...form, id: Math.max(0, ...sessions.map((s) => s.id)) + 1 };
-    setSessions((s) => [next, ...s]);
-    setForm({ id: 0, date: "", time: "", type: "CBT", note: "", exercises: [] });
+  // Load sessions from API
+  useEffect(() => {
+    const load = async () => {
+      try {
+        setLoading(true);
+        setError(null);
+        const token = typeof window !== "undefined" ? localStorage.getItem("bearer_token") : "";
+        const res = await fetch("/api/therapy-sessions-v2", {
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${token || ""}`,
+          },
+        });
+        if (!res.ok) throw new Error("Failed to load therapy sessions");
+        const data = await res.json();
+        if (Array.isArray(data.data)) setSessions(data.data);
+      } catch (e: any) {
+        setError(e?.message || "Failed to load therapy sessions");
+      } finally {
+        setLoading(false);
+      }
+    };
+    load();
+  }, []);
+
+  const addSession = async () => {
+    if (!form.date || !form.time || !form.type) return;
+    try {
+      setError(null);
+      const token = typeof window !== "undefined" ? localStorage.getItem("bearer_token") : "";
+      const res = await fetch("/api/therapy-sessions-v2", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token || ""}` },
+        body: JSON.stringify({
+          date: form.date,
+          time: form.time,
+          type: form.type,
+          note: form.note || null,
+          exercises: form.exercises,
+        }),
+      });
+      if (!res.ok) throw new Error("Failed to add session");
+      const data = await res.json();
+      if (data?.data) setSessions((s) => [data.data, ...s]);
+      setForm({ id: 0, date: "", time: "", type: "CBT", note: "", exercises: [] });
+    } catch (e: any) {
+      setError(e?.message || "Failed to add session");
+    }
+  };
+
+  const removeSession = async (id: number) => {
+    // optimistic
+    const prev = sessions;
+    setSessions((s) => s.filter((x) => x.id !== id));
+    try {
+      const token = typeof window !== "undefined" ? localStorage.getItem("bearer_token") : "";
+      const res = await fetch(`/api/therapy-sessions-v2?id=${id}`, {
+        method: "DELETE",
+        headers: { Authorization: `Bearer ${token || ""}` },
+      });
+      if (!res.ok) throw new Error("Failed to delete session");
+    } catch {
+      // rollback
+      setSessions(prev);
+    }
   };
 
   const toggleExercise = (name: string) => {
-    setForm((f) => ({ ...f, exercises: f.exercises.includes(name) ? f.exercises.filter((e) => e !== name) : [...f.exercises, name] }));
+    setForm((f) => ({
+      ...f,
+      exercises: f.exercises.includes(name)
+        ? f.exercises.filter((e) => e !== name)
+        : [...f.exercises, name],
+    }));
   };
 
   return (
@@ -82,7 +147,7 @@ export default function TherapyManager() {
               </div>
               <Textarea
                 placeholder="Session notes..."
-                value={form.note}
+                value={form.note || ""}
                 onChange={(e) => setForm((f) => ({ ...f, note: e.target.value }))}
               />
             </div>
@@ -113,6 +178,9 @@ export default function TherapyManager() {
             </div>
           </div>
 
+          {error && <div className="text-sm text-red-600">{error}</div>}
+          {loading && <div className="text-sm text-muted-foreground">Loading sessions...</div>}
+
           <div className="pt-4">
             <div className="text-sm font-medium mb-2">Upcoming & Recent Sessions</div>
             <ul className="space-y-2">
@@ -127,6 +195,9 @@ export default function TherapyManager() {
                       <Badge key={e} variant="secondary" className="rounded-full">{e}</Badge>
                     ))}
                   </div>
+                  <Button variant="outline" size="sm" onClick={() => removeSession(s.id)}>
+                    Delete
+                  </Button>
                 </li>
               ))}
             </ul>

@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useMemo, useState, useEffect } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -30,26 +30,120 @@ export default function HabitTracker() {
 
   const [habits, setHabits] = useState<Habit[]>(initial);
   const [editing, setEditing] = useState<Habit | null>(null);
+  const [loading, setLoading] = useState<boolean>(false);
+  const [error, setError] = useState<string | null>(null);
 
   const [form, setForm] = useState({ name: "", targetPerWeek: 5 });
 
-  const addHabit = () => {
-    if (!form.name.trim()) return;
-    const next: Habit = {
-      id: Math.max(0, ...habits.map((h) => h.id)) + 1,
-      name: form.name,
-      targetPerWeek: Number(form.targetPerWeek) || 1,
-      progress: 0,
-      streak: 0,
+  // Load habits from API
+  useEffect(() => {
+    const load = async () => {
+      try {
+        setLoading(true);
+        setError(null);
+        const token = typeof window !== "undefined" ? localStorage.getItem("bearer_token") : "";
+        const res = await fetch("/api/habits-v2", {
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${token || ""}`,
+          },
+        });
+        if (!res.ok) throw new Error("Failed to load habits");
+        const data = await res.json();
+        if (Array.isArray(data.data)) setHabits(data.data);
+      } catch (e: any) {
+        setError(e?.message || "Failed to load habits");
+      } finally {
+        setLoading(false);
+      }
     };
-    setHabits((h) => [next, ...h]);
-    setForm({ name: "", targetPerWeek: 5 });
+    load();
+  }, []);
+
+  const addHabit = async () => {
+    if (!form.name.trim()) return;
+    try {
+      setError(null);
+      const token = typeof window !== "undefined" ? localStorage.getItem("bearer_token") : "";
+      const res = await fetch("/api/habits-v2", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token || ""}`,
+        },
+        body: JSON.stringify({ name: form.name.trim(), targetPerWeek: Number(form.targetPerWeek) || 1 }),
+      });
+      if (!res.ok) throw new Error("Failed to add habit");
+      const data = await res.json();
+      if (data?.data) {
+        setHabits((h) => [data.data, ...h]);
+      }
+      setForm({ name: "", targetPerWeek: 5 });
+    } catch (e: any) {
+      setError(e?.message || "Failed to add habit");
+    }
   };
 
-  const saveEdit = () => {
+  const saveEdit = async () => {
     if (!editing) return;
-    setHabits((h) => h.map((x) => (x.id === editing.id ? editing : x)));
-    setEditing(null);
+    try {
+      setError(null);
+      const token = typeof window !== "undefined" ? localStorage.getItem("bearer_token") : "";
+      const res = await fetch("/api/habits-v2", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token || ""}` },
+        body: JSON.stringify({
+          id: editing.id,
+          name: editing.name,
+          targetPerWeek: editing.targetPerWeek,
+          progress: editing.progress,
+          streak: editing.streak,
+        }),
+      });
+      if (!res.ok) throw new Error("Failed to update habit");
+      const data = await res.json();
+      if (data?.data) setHabits((h) => h.map((x) => (x.id === editing.id ? data.data : x)));
+      setEditing(null);
+    } catch (e: any) {
+      setError(e?.message || "Failed to update habit");
+    }
+  };
+
+  const toggleToday = async (h: Habit, checked: boolean) => {
+    const progressDelta = checked ? 10 : -10;
+    const streakDelta = checked ? 1 : -1;
+    // optimistic update
+    setHabits((list) =>
+      list.map((x) =>
+        x.id === h.id
+          ? {
+              ...x,
+              progress: Math.max(0, Math.min(100, x.progress + progressDelta)),
+              streak: Math.max(0, x.streak + streakDelta),
+            }
+          : x
+      )
+    );
+    try {
+      const token = typeof window !== "undefined" ? localStorage.getItem("bearer_token") : "";
+      const res = await fetch("/api/habits-v2", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token || ""}` },
+        body: JSON.stringify({ id: h.id, progressDelta, streakDelta }),
+      });
+      if (!res.ok) throw new Error("Failed to update progress");
+      const data = await res.json();
+      if (data?.data) setHabits((list) => list.map((x) => (x.id === h.id ? data.data : x)));
+    } catch (e) {
+      // on failure, refetch to sync
+      const token = typeof window !== "undefined" ? localStorage.getItem("bearer_token") : "";
+      fetch("/api/habits-v2", {
+        headers: { Authorization: `Bearer ${token || ""}` },
+      })
+        .then((r) => r.json())
+        .then((d) => Array.isArray(d.data) && setHabits(d.data))
+        .catch(() => {});
+    }
   };
 
   return (
@@ -84,13 +178,16 @@ export default function HabitTracker() {
               />
             </div>
             <div className="flex items-end">
-              <Button className="w-full" onClick={addHabit}>
+              <Button className="w-full" onClick={addHabit} disabled={loading}>
                 <Plus className="mr-2 h-4 w-4" /> Add Habit
               </Button>
             </div>
           </div>
 
           <Separator />
+
+          {error && <div className="text-sm text-red-600">{error}</div>}
+          {loading && <div className="text-sm text-muted-foreground">Loading habits...</div>}
 
           <ul className="grid grid-cols-1 lg:grid-cols-2 gap-4">
             {habits.map((h) => (
@@ -113,8 +210,8 @@ export default function HabitTracker() {
                 <div className="mt-3 flex items-center justify-between">
                   <div className="flex items-center gap-2 text-sm">
                     <Checkbox id={`complete-${h.id}`} onCheckedChange={(v) => {
-                      const inc = v ? 10 : -10;
-                      setHabits((list) => list.map((x) => (x.id === h.id ? { ...x, progress: Math.max(0, Math.min(100, x.progress + inc)), streak: Math.max(0, x.streak + (v ? 1 : -1)) } : x)));
+                      const checked = !!v;
+                      toggleToday(h, checked);
                     }} />
                     <Label htmlFor={`complete-${h.id}`}>Mark today complete</Label>
                   </div>

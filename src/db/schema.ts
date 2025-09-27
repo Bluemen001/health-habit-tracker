@@ -1,7 +1,5 @@
 import { sqliteTable, integer, text } from 'drizzle-orm/sqlite-core';
 
-
-
 // Auth tables for better-auth
 export const user = sqliteTable("user", {
   id: text("id").primaryKey(),
@@ -65,4 +63,28 @@ export const verification = sqliteTable("verification", {
   updatedAt: integer("updated_at", { mode: "timestamp" }).$defaultFn(
     () => new Date(),
   ),
+});
+
+// Health & Habit Tracker tables
+export const habits = sqliteTable('habits', {
+  id: integer('id').primaryKey({ autoIncrement: true }),
+  userId: text('user_id').notNull().references(() => user.id, { onDelete: 'cascade' }),
+  name: text('name').notNull(),
+  targetPerWeek: integer('target_per_week').notNull().default(7),
+  progress: integer('progress').notNull().default(0),
+  streak: integer('streak').notNull().default(0),
+  createdAt: integer('created_at', { mode: 'timestamp' }).$defaultFn(() => new Date()).notNull(),
+  updatedAt: integer('updated_at', { mode: 'timestamp' }).$defaultFn(() => new Date()).notNull(),
+});
+
+export const therapySessions = sqliteTable('therapy_sessions', {
+  id: integer('id').primaryKey({ autoIncrement: true }),
+  userId: text('user_id').notNull().references(() => user.id, { onDelete: 'cascade' }),
+  date: text('date').notNull(),
+  time: text('time').notNull(),
+  type: text('type').notNull(),
+  note: text('note'),
+  exercises: text('exercises').notNull(),
+  createdAt: integer('created_at', { mode: 'timestamp' }).$defaultFn(() => new Date()).notNull(),
+  updatedAt: integer('updated_at', { mode: 'timestamp' }).$defaultFn(() => new Date()).notNull(),
 });
