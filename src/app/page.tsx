@@ -1,7 +1,6 @@
 "use client";
 
 import Image from "next/image";
-import AuthTabs from "@/components/auth/AuthTabs";
 import Dashboard from "@/components/dashboard/Dashboard";
 import HabitTracker from "@/components/habits/HabitTracker";
 import TherapyManager from "@/components/therapy/TherapyManager";
@@ -61,7 +60,6 @@ export default function Home() {
               ) : (
                 <div className="flex items-center gap-2">
                   <Button variant="outline" onClick={() => router.push("/login")}>Login</Button>
-                  <Button onClick={() => router.push("/register")}>Register</Button>
                 </div>
               )}
             </div>
@@ -70,9 +68,6 @@ export default function Home() {
       </header>
 
       <main className="container mx-auto px-4 py-6 space-y-8">
-        <section>
-          <AuthTabs />
-        </section>
         <Dashboard />
         <HabitTracker />
         <TherapyManager />
