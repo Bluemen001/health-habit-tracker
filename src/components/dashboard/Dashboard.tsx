@@ -1,14 +1,72 @@
 "use client";
 
-import { useMemo } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Separator } from "@/components/ui/separator";
-import { CalendarDays, Activity, HeartPulse, Brain, Stethoscope } from "lucide-react";
+import {
+  Activity,
+  BarChart3,
+  Brain,
+  CalendarDays,
+  HeartPulse,
+  Stethoscope,
+} from "lucide-react";
+import {
+  ResponsiveContainer,
+  BarChart,
+  Bar,
+  XAxis,
+  YAxis,
+  Tooltip,
+  CartesianGrid,
+} from "recharts";
 
 export default function Dashboard() {
+  const [weeklyData, setWeeklyData] = useState<
+    { date: string; day: string; completions: number }[]
+  >([]);
+  const [weeklyLoading, setWeeklyLoading] = useState(true);
+  const [weeklyError, setWeeklyError] = useState(false);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    async function loadWeeklyData() {
+      try {
+        const token = localStorage.getItem("bearer_token");
+        if (!token) {
+          if (!cancelled) setWeeklyError(true);
+          return;
+        }
+
+        const response = await fetch("/api/habit-completions", {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+
+        if (!response.ok) throw new Error("Unable to load analytics");
+
+        const result = await response.json();
+
+        if (!cancelled) {
+          setWeeklyData(Array.isArray(result.data) ? result.data : []);
+        }
+      } catch {
+        if (!cancelled) setWeeklyError(true);
+      } finally {
+        if (!cancelled) setWeeklyLoading(false);
+      }
+    }
+
+    loadWeeklyData();
+
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
   const stats = useMemo(
     () => [
       { label: "Daily Habit Completion", value: 76, icon: Activity, tone: "bg-teal-600" },
@@ -43,6 +101,59 @@ export default function Dashboard() {
           </Card>
         ))}
       </div>
+
+      <Card className="border-foreground/10">
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <BarChart3 className="h-5 w-5 text-teal-600" />
+            Weekly Habit Completions
+          </CardTitle>
+          <CardDescription>
+            Your recorded habit completions over the last 7 days
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          {weeklyLoading ? (
+            <p className="py-10 text-center text-sm text-muted-foreground">
+              Loading weekly analytics...
+            </p>
+          ) : weeklyError ? (
+            <p className="py-10 text-center text-sm text-muted-foreground">
+              Unable to load analytics. Please refresh the page.
+            </p>
+          ) : weeklyData.every((day) => day.completions === 0) ? (
+            <p className="py-10 text-center text-sm text-muted-foreground">
+              No completion history yet. Complete a habit to start tracking your week.
+            </p>
+          ) : (
+            <div className="h-64 w-full">
+              <ResponsiveContainer width="100%" height="100%">
+                <BarChart data={weeklyData}>
+                  <CartesianGrid strokeDasharray="3 3" vertical={false} />
+                  <XAxis dataKey="day" tickLine={false} axisLine={false} />
+                  <YAxis
+                    allowDecimals={false}
+                    width={32}
+                    tickLine={false}
+                    axisLine={false}
+                  />
+                  <Tooltip
+                    labelFormatter={(_, payload) =>
+                      payload?.[0]?.payload?.date ?? ""
+                    }
+                  />
+                  <Bar
+                    dataKey="completions"
+                    name="Completions"
+                    fill="#0d9488"
+                    radius={[5, 5, 0, 0]}
+                  />
+                </BarChart>
+              </ResponsiveContainer>
+            </div>
+          )}
+        </CardContent>
+      </Card>
 
       <Card className="border-foreground/10">
         <CardHeader>

@@ -19,8 +19,8 @@ async function main() {
             targetPerWeek: 7,
             progress: 65,
             streak: 12,
-            createdAt: new Date('2024-01-15').toISOString(),
-            updatedAt: new Date('2024-01-15').toISOString(),
+            createdAt: new Date('2024-01-15'),
+            updatedAt: new Date('2024-01-15'),
         },
         {
             userId: userId,
@@ -28,8 +28,8 @@ async function main() {
             targetPerWeek: 7,
             progress: 80,
             streak: 5,
-            createdAt: new Date('2024-01-20').toISOString(),
-            updatedAt: new Date('2024-01-20').toISOString(),
+            createdAt: new Date('2024-01-20'),
+            updatedAt: new Date('2024-01-20'),
         },
         {
             userId: userId,
@@ -37,8 +37,8 @@ async function main() {
             targetPerWeek: 4,
             progress: 45,
             streak: 3,
-            createdAt: new Date('2024-01-25').toISOString(),
-            updatedAt: new Date('2024-01-25').toISOString(),
+            createdAt: new Date('2024-01-25'),
+            updatedAt: new Date('2024-01-25'),
         },
         {
             userId: userId,
@@ -46,8 +46,8 @@ async function main() {
             targetPerWeek: 5,
             progress: 90,
             streak: 8,
-            createdAt: new Date('2024-02-01').toISOString(),
-            updatedAt: new Date('2024-02-01').toISOString(),
+            createdAt: new Date('2024-02-01'),
+            updatedAt: new Date('2024-02-01'),
         },
         {
             userId: userId,
@@ -55,8 +55,8 @@ async function main() {
             targetPerWeek: 7,
             progress: 35,
             streak: 2,
-            createdAt: new Date('2024-02-05').toISOString(),
-            updatedAt: new Date('2024-02-05').toISOString(),
+            createdAt: new Date('2024-02-05'),
+            updatedAt: new Date('2024-02-05'),
         }
     ];
 
