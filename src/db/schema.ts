@@ -1,4 +1,4 @@
-import { sqliteTable, integer, text } from 'drizzle-orm/sqlite-core';
+import { sqliteTable, integer, text, unique } from 'drizzle-orm/sqlite-core';
 
 // Auth tables for better-auth
 export const user = sqliteTable("user", {
@@ -88,3 +88,20 @@ export const therapySessions = sqliteTable('therapy_sessions', {
   createdAt: integer('created_at', { mode: 'timestamp' }).$defaultFn(() => new Date()).notNull(),
   updatedAt: integer('updated_at', { mode: 'timestamp' }).$defaultFn(() => new Date()).notNull(),
 });
+
+export const habitCompletions = sqliteTable(
+  "habit_completions",
+  {
+    id: integer("id").primaryKey({ autoIncrement: true }),
+    habitId: integer("habit_id")
+      .notNull()
+      .references(() => habits.id, { onDelete: "cascade" }),
+    completedDate: text("completed_date").notNull(),
+    createdAt: integer("created_at", { mode: "timestamp" })
+      .$defaultFn(() => new Date())
+      .notNull(),
+  },
+  (table) => ({
+    uniqueHabitDate: unique().on(table.habitId, table.completedDate),
+  }),
+);
