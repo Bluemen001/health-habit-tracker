@@ -34,3 +34,17 @@ You can check out [the Next.js GitHub repository](https://github.com/vercel/next
 The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
 
 Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+
+## Summary
+- Add per-habit, per-date completion history with a uniqueness constraint.
+- Add authenticated, user-scoped completion and weekly analytics endpoints.
+- Display real completion history in a seven-day dashboard chart.
+- Document the analytics API and database prerequisite in the README.
+
+## Validation
+- `npx tsc --noEmit` passes.
+- `git diff --check` passes.
+- `npm run build` compiles, but fails during ESLint checks in `sidebar.tsx` and `VisualEditsMessenger.tsx`.
+
+## Database note
+The migration has not been applied to Turso. Resolve the migration journal inconsistency and verify the remote schema before applying it. The feature is not yet verified end-to-end against the database.
